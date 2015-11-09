@@ -4,6 +4,14 @@
 # Default implementations of functions that are commonly optimized.
 #
 
+ifeq ($(ARCH_ARM_HAVE_ARMV7A),true)
+libc_bionic_src_files_arm += \
+    arch-arm/bionic/memchr.S
+else
+libc_bionic_src_files_arm += \
+    bionic/memchr.c
+endif
+
 libc_bionic_src_files_arm += \
     bionic/strchr.cpp \
     bionic/strnlen.c \
@@ -20,7 +28,6 @@ libc_freebsd_src_files_arm += \
     upstream-freebsd/lib/libc/string/wmemmove.c \
 
 libc_openbsd_src_files_arm += \
-    upstream-openbsd/lib/libc/string/memchr.c \
     upstream-openbsd/lib/libc/string/memrchr.c \
     upstream-openbsd/lib/libc/string/stpncpy.c \
     upstream-openbsd/lib/libc/string/strlcat.c \
@@ -32,6 +39,17 @@ libc_openbsd_src_files_arm += \
 #
 # Inherently architecture-specific code.
 #
+
+
+##########################################
+### CPU specific source files
+ifeq ($(ARCH_ARM_HAVE_NEON), true)
+libc_bionic_src_files_arm += \
+    arch-arm/bionic/memcmp_neon.S
+else
+libc_bionic_src_files_arm += \
+    arch-arm/bionic/memcmp.S
+endif
 
 libc_bionic_src_files_arm += \
     arch-arm/bionic/abort_arm.S \
