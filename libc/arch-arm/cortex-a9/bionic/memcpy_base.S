@@ -42,18 +42,13 @@ ENTRY_PRIVATE(MEMCPY_BASE)
         blo         5f
 
         /* check if buffers are aligned. If so, run arm-only version */
-        eor         r3, r0, r1
-        ands        r3, r3, #0x3
-        beq         MEMCPY_BASE_ALIGNED
 
-        /* Check the upper size limit for Neon unaligned memory access in memcpy */
-        cmp         r2, #224
-        blo         3f
+
 
         /* align destination to 16 bytes for the write-buffer */
         rsb         r3, r0, #0
         ands        r3, r3, #0xF
-        beq         3f
+        beq         2f
 
         /* copy up to 15-bytes (count in r3) */
         sub         r2, r2, r3
@@ -75,29 +70,47 @@ ENTRY_PRIVATE(MEMCPY_BASE)
         // copies 8 bytes, destination 64-bits aligned
         vld1.8      {d0}, [r1]!
         vst1.8      {d0}, [r0, :64]!
-2:
-        /* preload immediately the next cache line, which we may need */
-        pld         [r1, #0]
-        pld         [r1, #(32 * 2)]
+2:      cmp         r2, #256
+        ble         .L_copy_loop
+
+        // Make sure DST is 64 BYTE aligned.
+        rsb         r3, r0, #0
+        ands        r3, r3, #0x30
+        beq         .L_copy_loop
+
+        sub         r2, r2, r3
+        cmp         r3, #0x10
+        beq         .L_copy_16
+
+        vld1.8      {d0  - d3},   [r1]!
+        vst1.8      {d0  - d3},   [r0, :128]!
+        ands        r3, r3, #0x10
+        beq         .L_copy_loop
+
+.L_copy_16:
+        vld1.8      {d0, d1}, [r1]!
+        vst1.8      {d0, d1}, [r0, :128]!
+
+.L_copy_loop:
+
 3:
         /* make sure we have at least 64 bytes to copy */
         subs        r2, r2, #64
         blo         2f
 
         /* preload all the cache lines we need */
-        pld         [r1, #(32 * 4)]
-        pld         [r1, #(32 * 6)]
 
-1:      /* The main loop copies 64 bytes at a time */
-        vld1.8      {d0 - d3}, [r1]!
-        vld1.8      {d4 - d7}, [r1]!
-        pld         [r1, #(32 * 6)]
+
+1:      // The main loop copies 64 bytes at a time.
+        vld1.8      {d0  - d3},   [r1]!
+        vst1.8      {d0  - d3},   [r0, :128]!
+
         subs        r2, r2, #64
-        vst1.8      {d0 - d3}, [r0]!
-        vst1.8      {d4 - d7}, [r0]!
+        vld1.8      {d4  - d7},   [r1]!
+        vst1.8      {d4  - d7},   [r0, :128]!
         bhs         1b
 
-2:      /* fix-up the remaining count and make sure we have >= 32 bytes left */
+2:      /* fix-up the remaining count and make sure we have                                                                              >= 32 bytes left */
         add         r2, r2, #64
         subs        r2, r2, #32
         blo         4f
