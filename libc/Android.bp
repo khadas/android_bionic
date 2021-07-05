@@ -1983,6 +1983,7 @@ cc_library {
     ],
     name: "libstdc++",
     static_ndk_lib: true,
+    vendor_available: true,
     static_libs: ["libasync_safe"],
 
     static: {
